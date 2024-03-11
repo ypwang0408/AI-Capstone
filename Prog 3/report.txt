@@ -1,0 +1,20 @@
+Literals與Clauses: 
+實際上的literal是帶正負值(positive/negative)得，而clauses是好幾個literals組合而成的。如果我自訂一兩個Class來表示這兩個概念，會因為要自己補__eq__和__hash__而變得很麻煩，所以我直接用整數來表達，正數表示positive literal，負數表示negative literal，而clauses就是一個set of literals。例如：{1, 2, 3}表示一個clause，其中包含三個literals，分別是1, 2, 3。而因為set是python內建的資料結構，所以用起來會比自定義的class方便很多。而在這個作業裡面，我把KB定義為一個list of clauses，例如：[{1, 2, 3}, {1, 2, 4}]，KB0則因為都是single literal，所以就是單純整數的set，例如：{1, -2, -3, 4}，表示1, 4是Mine，2, 3是Safe。
+執行流程:
+在開始執行的時候，會先init整個遊戲，會依照難易度設定對應的長寬以及地雷的數量，並隨機產生地雷的位置，並且產生好完整的地圖(答案)和玩家的地圖，並且提供一定數量的初始KB。
+    game_start(): 一直跑play()這個function，並在跑不下去(stuck)或是過關的時候幫忙確認玩家的答案是否正確。
+    generate_mine(): 產生地雷的位置，回傳一個list of tuple，每個tuple是一個地雷的位置。
+    generate_board(): 根據是player還是answer，產生對應的空白地圖。
+    assign_answer_board(): 根據地雷的位置，把地雷的位置填入地圖，並且計算每個格子周圍的地雷數量。
+    get_init_safe(): 隨機產生一個safe的位置，並且回傳。
+    print_board(): 印出player或是answer的地圖。
+    dig(): 根據玩家輸入的位置，挖掉該位置，如果挖到地雷就回傳-1，否則回傳該位置周圍的地雷數量(可以從answer_board得到)。
+    clean_KBs(): 把KB裡面的所有clauses都掃描一遍，如果裡面已經有確認過的literals，就把該clauses刪掉，代表這個clauses已經沒有用了(已經恆成立了)，然後取unique和根據長度排序，這個function只是為了確保KB的資料是最精簡的狀態。
+    mark_mine(): 根據玩家輸入的位置，把該位置的地雷標記起來。
+    KB_to_KB0(): id是傳入值去掉正負號，mine_or_safe = tar > 0，如果mine_or_safe是True，代表是Mine，否則是Safe。因為不能一邊迭代一邊刪除，所以先把要刪除的index記下來，最後再一次刪除。而如果id一樣，要看是不是同號，如果同號就把整個clauses從KB刪除，如果不同號就把該literal從clauses刪除。再來確認KB內有沒有clause是其他clauses的subset，如果有就把super set刪除，直到沒有新的subset出現為止。
+    add_to_KB(): 如果KB裡面已經有這個clauses了，就不用加入了，如果沒有而且長度等於1，就把這個clauses直接加入KB。剩下的把負面敘述出現在KB0裡面的literal刪掉，同時做subsumption直到沒有新的subset出現為止。然後再把自己加到KB裡面。
+    play(): 先執行一次clean_KBs()，確保KB和KB0的資料都是最精簡的狀態，先找一個在KB裡面的single literal當成目標，如果找不到救回傳-1，然後把這個目標透過KB_to_KB0()加入KB0，如果目標是Mine，就把他mark起來，如果是Safe，就dig它，如果回傳-1，代表挖到地雷，就回傳-1，否則看周圍那些座標(around)，如果dig的回傳是0，所有周圍的地都是安全的，就直接把around裡面的座標做成single negative literals加到KB中，如果周圍全部都是地雷，則把around裡面的座標做成single positive literals加到KB中，如果周圍有地雷也有安全的，就利用排列組合的工具，把周圍的座標做成all positive/negative clauses加到KB中，然後再執行一次clean_KBs()，確保KB和KB0的資料都是最精簡的狀態，然後就return回去，繼續下一輪的play()，直到KB裡面沒有clauses了。
+    check_win(): 檢查玩家的地圖和答案是否一樣，如果除了地雷的位置的標誌不同以外，其他都一樣，就代表過關了，回傳True，否則回傳False。
+一些實驗與發現:
+    我自己在測試的時候，發現Hard的場地其實基本上很難過，因為地雷的數量太多了，基本上快要是Easy的兩倍，這樣地雷的比例之下就算是給兩倍的多比例的init_safe也很難過關。還有不管在甚麼難度之下，只要有出現一整排的數字，會因為可行種類太多而卡住，然後就過不了，也可能有地雷直接圍成一圈，直接導致無法判斷，這些都是我在測試的時候發現的問題。
+    
